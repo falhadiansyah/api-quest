@@ -35,11 +35,15 @@ func main() {
 	r.HandleFunc("/echo", echoHandler).Methods("POST")
 
 	// Level 3 & 4
-	r.HandleFunc("/books", createBook).Methods("POST")
-	r.HandleFunc("/books", getBooks).Methods("GET")
-	r.HandleFunc("/books/{id}", getBookByID).Methods("GET")
-	r.HandleFunc("/books/{id}", updateBook).Methods("PUT")
-	r.HandleFunc("/books/{id}", deleteBook).Methods("DELETE")
+	// Protected routes
+	booksRouter := r.PathPrefix("/books").Subrouter()
+	booksRouter.Use(authMiddleware)
+
+	booksRouter.HandleFunc("", getBooks).Methods("GET")
+	booksRouter.HandleFunc("", createBook).Methods("POST")
+	booksRouter.HandleFunc("/{id}", getBookByID).Methods("GET")
+	booksRouter.HandleFunc("/{id}", updateBook).Methods("PUT")
+	booksRouter.HandleFunc("/{id}", deleteBook).Methods("DELETE")
 
 	// Level 5 (belum dipakai dulu)
 	r.HandleFunc("/auth/token", authHandler).Methods("POST")
@@ -240,8 +244,43 @@ func deleteBook(w http.ResponseWriter, r *http.Request) {
 func authHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	var input map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	username := input["username"]
+	password := input["password"]
+
+	if username != "admin" || password != "password" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	resp, _ := json.Marshal(map[string]string{
 		"token": token,
 	})
+
+	w.WriteHeader(http.StatusOK)
 	w.Write(resp)
+}
+
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		expected := "Bearer " + token
+		if authHeader != expected {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
