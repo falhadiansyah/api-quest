@@ -144,10 +144,47 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	result := make([]Book, 0)
-	for _, book := range books {
-		result = append(result, book)
+	authorFilter := r.URL.Query().Get("author")
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	// Default pagination values
+	page := 1
+	limit := len(books)
+
+	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+		page = p
 	}
+
+	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		limit = l
+	}
+
+	// Step 1: Filtering
+	filtered := make([]Book, 0)
+	for _, book := range books {
+		if authorFilter != "" {
+			if book.Author == authorFilter {
+				filtered = append(filtered, book)
+			}
+		} else {
+			filtered = append(filtered, book)
+		}
+	}
+
+	// Step 2: Pagination
+	start := (page - 1) * limit
+	end := start + limit
+
+	if start > len(filtered) {
+		start = len(filtered)
+	}
+
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+
+	result := filtered[start:end]
 
 	resp, _ := json.Marshal(result)
 	w.Write(resp)
