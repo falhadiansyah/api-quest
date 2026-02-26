@@ -53,7 +53,12 @@ func main() {
 }
 
 func pingHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(map[string]string{"message": "pong"})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(map[string]bool{
+		"success": true,
+	})
 }
 
 func echoHandler(w http.ResponseWriter, r *http.Request) {
