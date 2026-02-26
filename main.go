@@ -16,6 +16,7 @@ type Book struct {
 	ID     string `json:"id"`
 	Title  string `json:"title"`
 	Author string `json:"author"`
+	Year   int    `json:"year"`
 }
 
 var (
@@ -82,14 +83,16 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createBook(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	var book Book
 	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	if book.Title == "" || book.Author == "" {
-		http.Error(w, "Title and Author required", http.StatusBadRequest)
+	if book.Title == "" || book.Author == "" || book.Year == 0 {
+		http.Error(w, "Missing fields", http.StatusBadRequest)
 		return
 	}
 
@@ -104,43 +107,14 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
-	// Auth check
-	if r.Header.Get("Authorization") != "Bearer "+token {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
+	w.Header().Set("Content-Type", "application/json")
 
 	mutex.Lock()
 	defer mutex.Unlock()
 
 	var result []Book
-
-	authorFilter := r.URL.Query().Get("author")
-	pageStr := r.URL.Query().Get("page")
-	limitStr := r.URL.Query().Get("limit")
-
 	for _, book := range books {
-		if authorFilter == "" || strings.EqualFold(book.Author, authorFilter) {
-			result = append(result, book)
-		}
-	}
-
-	// Pagination
-	if pageStr != "" && limitStr != "" {
-		page, _ := strconv.Atoi(pageStr)
-		limit, _ := strconv.Atoi(limitStr)
-
-		start := (page - 1) * limit
-		end := start + limit
-
-		if start > len(result) {
-			result = []Book{}
-		} else {
-			if end > len(result) {
-				end = len(result)
-			}
-			result = result[start:end]
-		}
+		result = append(result, book)
 	}
 
 	json.NewEncoder(w).Encode(result)
