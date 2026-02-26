@@ -62,9 +62,23 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func echoHandler(w http.ResponseWriter, r *http.Request) {
-	var body map[string]interface{}
-	json.NewDecoder(r.Body).Decode(&body)
-	json.NewEncoder(w).Encode(body)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	var body interface{}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Use Marshal instead of Encoder to avoid newline
+	response, err := json.Marshal(body)
+	if err != nil {
+		http.Error(w, "Error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(response)
 }
 
 func createBook(w http.ResponseWriter, r *http.Request) {
