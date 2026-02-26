@@ -155,6 +155,8 @@ func getBookByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateBook(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	id := mux.Vars(r)["id"]
 
 	mutex.Lock()
@@ -166,18 +168,32 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var updated Book
-	json.NewDecoder(r.Body).Decode(&updated)
-
-	if updated.Title == "" || updated.Author == "" {
-		http.Error(w, "Invalid Data", http.StatusBadRequest)
+	var input map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	updated.ID = id
+	title, ok1 := input["title"].(string)
+	author, ok2 := input["author"].(string)
+	yearFloat, ok3 := input["year"].(float64)
+
+	if !ok1 || !ok2 || !ok3 {
+		http.Error(w, "Missing fields", http.StatusBadRequest)
+		return
+	}
+
+	updated := Book{
+		ID:     id,
+		Title:  title,
+		Author: author,
+		Year:   int(yearFloat),
+	}
+
 	books[id] = updated
 
-	json.NewEncoder(w).Encode(updated)
+	resp, _ := json.Marshal(updated)
+	w.Write(resp)
 }
 
 func deleteBook(w http.ResponseWriter, r *http.Request) {
