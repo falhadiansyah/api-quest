@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
 	"github.com/gorilla/mux"
+	"io"
 )
 
 type Book struct {
@@ -65,20 +65,20 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	var body interface{}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Invalid body", http.StatusBadRequest)
+		return
+	}
+
+	// Optional: validate JSON without modifying it
+	var js json.RawMessage
+	if err := json.Unmarshal(body, &js); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	// Use Marshal instead of Encoder to avoid newline
-	response, err := json.Marshal(body)
-	if err != nil {
-		http.Error(w, "Error", http.StatusInternalServerError)
-		return
-	}
-
-	w.Write(response)
+	w.Write(body)
 }
 
 func createBook(w http.ResponseWriter, r *http.Request) {
