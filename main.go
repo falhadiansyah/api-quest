@@ -137,6 +137,8 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 }
 
 func getBookByID(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	id := mux.Vars(r)["id"]
 
 	mutex.Lock()
@@ -148,7 +150,8 @@ func getBookByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(book)
+	resp, _ := json.Marshal(book)
+	w.Write(resp)
 }
 
 func updateBook(w http.ResponseWriter, r *http.Request) {
