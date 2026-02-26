@@ -85,13 +85,17 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 func createBook(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var book Book
-	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
+	var input map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	if book.Title == "" || book.Author == "" || book.Year == 0 {
+	title, ok1 := input["title"].(string)
+	author, ok2 := input["author"].(string)
+	yearFloat, ok3 := input["year"].(float64)
+
+	if !ok1 || !ok2 || !ok3 {
 		http.Error(w, "Missing fields", http.StatusBadRequest)
 		return
 	}
@@ -99,11 +103,22 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	book.ID = strconv.Itoa(len(books) + 1)
-	books[book.ID] = book
+	id := strconv.Itoa(len(books) + 1)
+
+	book := Book{
+		ID:     id,
+		Title:  title,
+		Author: author,
+		Year:   int(yearFloat),
+	}
+
+	books[id] = book
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(book)
+
+	// IMPORTANT: use Marshal (no newline)
+	resp, _ := json.Marshal(book)
+	w.Write(resp)
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
@@ -112,12 +127,14 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	var result []Book
+	result := make([]Book, 0) // FORCE empty array
+
 	for _, book := range books {
 		result = append(result, book)
 	}
 
-	json.NewEncoder(w).Encode(result)
+	resp, _ := json.Marshal(result)
+	w.Write(resp)
 }
 
 func getBookByID(w http.ResponseWriter, r *http.Request) {
