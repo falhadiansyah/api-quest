@@ -176,15 +176,6 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 
 	id := mux.Vars(r)["id"]
 
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	_, exists := books[id]
-	if !exists {
-		http.Error(w, "Not Found", http.StatusNotFound)
-		return
-	}
-
 	var input map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -200,16 +191,27 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated := Book{
-		ID:     id,
-		Title:  title,
-		Author: author,
-		Year:   int(yearFloat),
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	// 🔥 If book does not exist, create it
+	if _, exists := books[id]; !exists {
+		books[id] = Book{
+			ID:     id,
+			Title:  title,
+			Author: author,
+			Year:   int(yearFloat),
+		}
+	} else {
+		books[id] = Book{
+			ID:     id,
+			Title:  title,
+			Author: author,
+			Year:   int(yearFloat),
+		}
 	}
 
-	books[id] = updated
-
-	resp, _ := json.Marshal(updated)
+	resp, _ := json.Marshal(books[id])
 	w.Write(resp)
 }
 
